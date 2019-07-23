@@ -10,7 +10,7 @@ using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 
-namespace GLWpfControl
+namespace OpenTK.Wpf
 {
     /// <summary>
     ///     Provides a native WPF control for OpenTK.
@@ -149,7 +149,7 @@ namespace GLWpfControl
 
             if (!ReferenceEquals(GraphicsContext.CurrentContext, _context))
             {
-                _context.MakeCurrent(_windowInfo);
+                _context?.MakeCurrent(_windowInfo);
             }
 
             TimeSpan deltaTime = _stopwatch.Elapsed - _lastFrameStamp;
@@ -215,7 +215,7 @@ namespace GLWpfControl
         private void ReleaseOpenGLResources()
         {
             _renderer?.DeleteBuffers();
-            _context.Dispose();
+            _context?.Dispose();
             _context = null;
         }
     }
