@@ -103,7 +103,16 @@ namespace GLWpfControl {
             _hasRenderedAFrame = true;
         }
 
-        
+        public void BeginUpdate()
+        {
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, FrameBuffer);
+            GL.Viewport(0, 0, Width, Height);
+        }
+
+        public void EndUpdate()
+        {
+
+        }
 
         private void UpdateImageSoftware() {
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, FrameBuffer);
@@ -131,6 +140,7 @@ namespace GLWpfControl {
 
             GL.BindBuffer(BufferTarget.PixelPackBuffer, 0);
         }
+
         private void UpdateImageHardware() {
             // There are 2 options we can use here.
             // 1. Use a D3DSurface and WGL_NV_DX_interop to perform the rendering.

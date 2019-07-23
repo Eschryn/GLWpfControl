@@ -152,11 +152,15 @@ namespace GLWpfControl
                 _context.MakeCurrent(_windowInfo);
             }
 
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, _renderer.FrameBuffer);
             TimeSpan deltaTime = _stopwatch.Elapsed - _lastFrameStamp;
-            GL.Viewport(0, 0, (int)RenderSize.Width, (int)RenderSize.Height);
+
+            _renderer?.BeginUpdate();
+
             Render?.Invoke(deltaTime);
             _renderer?.UpdateImage();
+
+            _renderer?.EndUpdate();
+
             InvalidateVisual();
             _lastFrameStamp = _stopwatch.Elapsed;
         }
