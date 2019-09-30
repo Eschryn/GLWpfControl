@@ -132,6 +132,11 @@ namespace OpenTK.Wpf
 
         private void OnCompTargetRender(object sender, EventArgs e)
         {
+            if (_context == null || _renderer == null)
+            {
+                return;
+            }
+            
             if (_resizeStartStamp != 0)
             {
                 if (_resizeStartStamp + ResizeUpdateInterval > _stopwatch.ElapsedMilliseconds)
@@ -199,6 +204,7 @@ namespace OpenTK.Wpf
                 _imageRectangle.Width = info.NewSize.Width;
                 InvalidateVisual();
             }
+            base.OnRenderSizeChanged(info);
         }
 
         private void InitOpenGL()
