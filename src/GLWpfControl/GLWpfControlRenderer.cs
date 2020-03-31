@@ -10,31 +10,24 @@ using PixelFormat = OpenTK.Graphics.OpenGL.PixelFormat;
 
 namespace OpenTK.Wpf {
     internal sealed class GLWpfControlRenderer {
-        
-        [DllImport("kernel32.dll")]
-        private static extern void CopyMemory(IntPtr destination, IntPtr source, uint length);
-        
-        private readonly WriteableBitmap _bitmap;
+
+        private readonly ImageSource _bitmap;
         private readonly int _colorBuffer;
         private readonly int _depthBuffer;
 
-        private readonly Image _imageControl;
         private readonly bool _isHardwareRenderer;
-        private readonly int[] _pixelBuffers;
-        private bool _hasRenderedAFrame = false;
+        private readonly ISwapStrategy _swapStrategy;
         
         public int FrameBuffer { get; }
 
-        public int Width => _bitmap.PixelWidth;
-        public int Height => _bitmap.PixelHeight;
-        public int PixelBufferObjectCount => _pixelBuffers.Length;
+        public int Width => (int)_bitmap.Width;
+        public int Height => (int)_bitmap.Height;
 
-        public GLWpfControlRenderer(int width, int height, Image imageControl, bool isHardwareRenderer, int pixelBufferCount) {
+        public ImageSource Source => _bitmap;
 
-            _imageControl = imageControl;
+        public GLWpfControlRenderer(int width, int height, bool isHardwareRenderer, int pixelBufferCount) {
+            
             _isHardwareRenderer = isHardwareRenderer;
-            // the bitmap we're blitting to in software mode.
-            _bitmap = new WriteableBitmap(width, height, 96, 96, PixelFormats.Bgra32, null);
 
             // set up the framebuffer
             FrameBuffer = GL.GenFramebuffer();
@@ -59,48 +52,23 @@ namespace OpenTK.Wpf {
 
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
 
-            // generate the pixel buffers
+            _swapStrategy = new WritableBitmapSwapStrategy();
+            _swapStrategy.Initialize(width, height, pixelBufferCount);
 
-            _pixelBuffers = new int[pixelBufferCount];
-            // RGBA8 buffer
-            var size = sizeof(byte) * 4 * width * height;
-            for (var i = 0; i < _pixelBuffers.Length; i++) {
-                var pb = GL.GenBuffer();
-                GL.BindBuffer(BufferTarget.PixelPackBuffer, pb);
-                GL.BufferData(BufferTarget.PixelPackBuffer, size, IntPtr.Zero, BufferUsageHint.StreamRead);
-                _pixelBuffers[i] = pb;
-            }
-
-            GL.BindBuffer(BufferTarget.PixelPackBuffer, 0);
+            _bitmap = _swapStrategy.MakeTarget(width, height);
         }
 
         public void DeleteBuffers() {
             GL.DeleteFramebuffer(FrameBuffer);
             GL.DeleteRenderbuffer(_depthBuffer);
             GL.DeleteRenderbuffer(_colorBuffer);
-            for (var i = 0; i < _pixelBuffers.Length; i++) {
-                GL.DeleteBuffer(_pixelBuffers[i]);
-            }
+
+            _swapStrategy.Dispose();
         }
 
-        // shifts all of the PBOs along by 1.
-        private void RotatePixelBuffers() {
-            var fst = _pixelBuffers[0];
-            for (var i = 1; i < _pixelBuffers.Length; i++) {
-                _pixelBuffers[i - 1] = _pixelBuffers[i];
-            }
-            _pixelBuffers[_pixelBuffers.Length - 1] = fst;
-        }
-
-        public void UpdateImage() {
-            if (false && _isHardwareRenderer) {
-                UpdateImageHardware();
-            }
-            else {
-                UpdateImageSoftware();
-            }
-
-            _hasRenderedAFrame = true;
+        public void UpdateImage()
+        {
+            _swapStrategy.Swap(FrameBuffer, _bitmap);
         }
 
         public void BeginUpdate()
@@ -112,33 +80,6 @@ namespace OpenTK.Wpf {
         public void EndUpdate()
         {
 
-        }
-
-        private void UpdateImageSoftware() {
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, FrameBuffer);
-            // start the (async) pixel transfer.
-            GL.BindBuffer(BufferTarget.PixelPackBuffer, _pixelBuffers[0]);
-            GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
-            GL.ReadPixels(0, 0, Width, Height, PixelFormat.Bgra, PixelType.UnsignedByte, IntPtr.Zero);
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
-            // rotate the pixel buffers.
-            if (_hasRenderedAFrame) {
-                RotatePixelBuffers();
-            }
-
-            GL.BindBuffer(BufferTarget.PixelPackBuffer, _pixelBuffers[0]);
-            // copy the data over from a mapped buffer.
-            _bitmap.Lock();
-            var data = GL.MapBuffer(BufferTarget.PixelPackBuffer, BufferAccess.ReadOnly);
-            CopyMemory(_bitmap.BackBuffer, data, (uint) (sizeof(byte) * 4 * Width * Height));
-            _bitmap.AddDirtyRect(new Int32Rect(0, 0, _bitmap.PixelWidth, _bitmap.PixelHeight));
-            _bitmap.Unlock();
-            GL.UnmapBuffer(BufferTarget.PixelPackBuffer);
-            if (!ReferenceEquals(_imageControl.Source, _bitmap)) {
-                _imageControl.Source = _bitmap;
-            }
-
-            GL.BindBuffer(BufferTarget.PixelPackBuffer, 0);
         }
 
         private void UpdateImageHardware() {
