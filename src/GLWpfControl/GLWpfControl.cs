@@ -38,12 +38,10 @@ namespace OpenTK.Wpf
         /// </summary>
         public event Action Ready;
 
-        // The image that the control uses
-        private readonly Image _image;
-
         // Transformations and size 
         private TranslateTransform _translateTransform;
         private Rect _imageRectangle;
+        private readonly Transform _renderTransform;
 
         static GLWpfControl()
         {
@@ -62,14 +60,9 @@ namespace OpenTK.Wpf
         /// </summary>
         public GLWpfControl()
         {
-            _image = new Image()
+            _renderTransform = new ScaleTransform()
             {
-                Stretch = Stretch.Fill,
-                RenderTransformOrigin = new Point(0.5, 0.5),
-                RenderTransform = new ScaleTransform()
-                {
-                    ScaleY = -1
-                }
+                ScaleY = -1
             };
         }
 
@@ -115,7 +108,7 @@ namespace OpenTK.Wpf
             if (_renderer == null) {
                 var width = (int)RenderSize.Width;
                 var height = (int)RenderSize.Height;
-                _renderer = new GLWpfControlRenderer(width, height, _image, _settings.UseHardwareRender, _settings.PixelBufferObjectCount);
+                _renderer = new GLWpfControlRenderer(width, height, _settings.UseHardwareRender, _settings.PixelBufferObjectCount);
             }
 
             _imageRectangle = new Rect(0, 0, RenderSize.Width, RenderSize.Height);
@@ -153,7 +146,7 @@ namespace OpenTK.Wpf
                 _renderer?.DeleteBuffers();
                 var width = (int)RenderSize.Width;
                 var height = (int)RenderSize.Height;
-                _renderer = new GLWpfControlRenderer(width, height, _image, _settings.UseHardwareRender, _settings.PixelBufferObjectCount);
+                _renderer = new GLWpfControlRenderer(width, height, _settings.UseHardwareRender, _settings.PixelBufferObjectCount);
 
                 _resizeStartStamp = 0;
             }
@@ -178,11 +171,14 @@ namespace OpenTK.Wpf
 
         protected override void OnRender(DrawingContext drawingContext)
         {
+            if (_renderer == null)
+                return;
+
             // Transforms are applied in reverse order
             drawingContext.PushTransform(_translateTransform);              // Apply translation to the image on the Y axis by the height. This assures that in the next step, where we apply a negative scale the image is still inside of the window
-            drawingContext.PushTransform(_image.RenderTransform);           // Apply a scale where the Y axis is -1. This will rotate the image by 180 deg
+            drawingContext.PushTransform(_renderTransform);                 // Apply a scale where the Y axis is -1. This will rotate the image by 180 deg
 
-            drawingContext.DrawImage(_image.Source, _imageRectangle);       // Draw the image source 
+            drawingContext.DrawImage(_renderer.Source, _imageRectangle);    // Draw the renderer source 
 
             drawingContext.Pop();                                           // Remove the scale transform
             drawingContext.Pop();                                           // Remove the translation transform
