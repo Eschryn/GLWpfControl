@@ -16,7 +16,10 @@ namespace GLWpfControlExample {
         public MainWindow() {
             InitializeComponent();
             _elapsedTime = new TimeSpan();
-            var settings = new GLWpfControlSettings();
+            var settings = new GLWpfControlSettings
+            {
+                GraphicsContextFlags = GraphicsContextFlags.Debug
+            };
             settings.MajorVersion = 2;
             settings.MinorVersion = 1;
             OpenTkControl.Start(settings);
